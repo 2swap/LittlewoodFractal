@@ -4,4 +4,4 @@ A littlewood polynomial is a polynomial where each coefficient is either +1 or -
 
 This interactive visualizer can be used in-browser here: https://2swap.github.io/LittlewoodFractal/
 
-This repository was created with [https://lovable.dev](Lovable).
+This repository was created with [Lovable](https://lovable.dev).
