@@ -120,36 +120,12 @@ export const FractalCanvas = ({ degree, coefficients, onCoefficientsChange, onRe
     return result;
   };
 
-  const generateSignCombinations = (partition: number[]): number[][] => {
-    const result: number[][] = [];
-    const n = partition.length;
-    const totalCombinations = Math.pow(2, n);
-    
-    for (let i = 0; i < totalCombinations; i++) {
-      const combination: number[] = [];
-      for (let j = 0; j < n; j++) {
-        const sign = (i >> j) & 1 ? -1 : 1;
-        combination.push(partition[j] * sign);
-      }
-      result.push(combination);
-    }
-    
-    return result;
-  };
-
   const generatePolynomials = (degree: number, coeffs: Complex[]) => {
     if (mode === "integer") {
       const partitions = generateIntegerPartitions(coefficientSum, degree);
-      const allPolynomials: Complex[][] = [];
-      
-      for (const partition of partitions) {
-        const signCombinations = generateSignCombinations(partition);
-        for (const combination of signCombinations) {
-          allPolynomials.push(combination.map(n => ({ re: n, im: 0 } as Complex)));
-        }
-      }
-      
-      return allPolynomials;
+      return partitions.map(partition => 
+        partition.map(n => ({ re: n, im: 0 } as Complex))
+      );
     } else {
       const numPolynomials = Math.pow(coeffs.length, degree);
       const polynomials: Complex[][] = [];
