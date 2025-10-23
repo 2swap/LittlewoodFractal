@@ -63,9 +63,9 @@ export const FractalCanvas = ({ degree, coefficients, onCoefficientsChange, onRe
     // Predict root count
     let estimatedRoots;
     if (mode === "integer") {
-      // Calculate number of partitions (approximation for large numbers)
-      const numPartitions = calculatePartitionCount(coefficientSum, degree);
-      estimatedRoots = numPartitions * degree;
+      // Fast count of polynomials
+      const numPolynomials = countPolynomials(coefficientSum, degree);
+      estimatedRoots = numPolynomials * degree;
     } else {
       const numPolynomials = Math.pow(coefficients.length, degree);
       estimatedRoots = numPolynomials * degree;
@@ -73,7 +73,7 @@ export const FractalCanvas = ({ degree, coefficients, onCoefficientsChange, onRe
     
     if (estimatedRoots > maxRoots) {
       setErrorMessage(`Too many roots to render: ${estimatedRoots.toLocaleString()}. Maximum is ${maxRoots.toLocaleString()}. Please reduce degree or coefficient ${mode === "integer" ? "sum" : "count"}.`);
-      setIsRendering(false); // Fix infinite loop bug
+      setIsRendering(false);
       return;
     }
     
@@ -81,51 +81,89 @@ export const FractalCanvas = ({ degree, coefficients, onCoefficientsChange, onRe
     renderFractal();
   }, [degree, coefficients, maxRoots, maxIterations, canvasSize, mode, coefficientSum]);
 
-  const calculatePartitionCount = (sum: number, parts: number): number => {
-    // Simple approximation - actual calculation is done in generateIntegerPartitions
-    const partitions = generateIntegerPartitions(sum, parts);
-    return partitions.length;
-  };
 
-  const generateIntegerPartitions = (maxSum: number, parts: number): number[][] => {
+  const generateIntegerPartitions = (exactSum: number, parts: number): number[][] => {
     const result: number[][] = [];
     
-    const partition = (remaining: number, numParts: number, min: number, current: number[]) => {
+    const partition = (remaining: number, numParts: number, current: number[]) => {
       if (numParts === 0) {
-        if (remaining >= 0) {
+        if (remaining === 0) {
           result.push([...current]);
         }
         return;
       }
       
       if (numParts === 1) {
-        if (remaining >= min) {
+        if (remaining >= 0) {
           result.push([...current, remaining]);
         }
         return;
       }
       
-      for (let i = min; i <= remaining; i++) {
+      // Try all possible values for current position
+      for (let i = 0; i <= remaining; i++) {
         current.push(i);
-        partition(remaining - i, numParts - 1, 0, current);
+        partition(remaining - i, numParts - 1, current);
         current.pop();
       }
     };
     
-    // Generate all partitions with sum <= maxSum
-    for (let targetSum = 0; targetSum <= maxSum; targetSum++) {
-      partition(targetSum, parts, 0, []);
+    partition(exactSum, parts, []);
+    return result;
+  };
+
+  const applySignCombinations = (partition: number[]): number[][] => {
+    const result: number[][] = [];
+    
+    // Find indices of non-zero elements
+    const nonZeroIndices: number[] = [];
+    partition.forEach((val, idx) => {
+      if (val !== 0) nonZeroIndices.push(idx);
+    });
+    
+    const numNonZero = nonZeroIndices.length;
+    const numCombinations = Math.pow(2, numNonZero);
+    
+    // Generate all sign combinations for non-zero elements
+    for (let i = 0; i < numCombinations; i++) {
+      const combo = [...partition];
+      for (let j = 0; j < numNonZero; j++) {
+        const idx = nonZeroIndices[j];
+        const sign = (i >> j) & 1 ? -1 : 1;
+        combo[idx] = partition[idx] * sign;
+      }
+      result.push(combo);
     }
     
     return result;
   };
 
+  const countPolynomials = (sum: number, degree: number): number => {
+    // Fast count without generating all polynomials
+    let count = 0;
+    const partitions = generateIntegerPartitions(sum, degree);
+    
+    for (const partition of partitions) {
+      const numNonZero = partition.filter(v => v !== 0).length;
+      count += Math.pow(2, numNonZero);
+    }
+    
+    return count;
+  };
+
   const generatePolynomials = (degree: number, coeffs: Complex[]) => {
     if (mode === "integer") {
       const partitions = generateIntegerPartitions(coefficientSum, degree);
-      return partitions.map(partition => 
-        partition.map(n => ({ re: n, im: 0 } as Complex))
-      );
+      const allPolynomials: Complex[][] = [];
+      
+      for (const partition of partitions) {
+        const signedPartitions = applySignCombinations(partition);
+        for (const signedPartition of signedPartitions) {
+          allPolynomials.push(signedPartition.map(n => ({ re: n, im: 0 } as Complex)));
+        }
+      }
+      
+      return allPolynomials;
     } else {
       const numPolynomials = Math.pow(coeffs.length, degree);
       const polynomials: Complex[][] = [];

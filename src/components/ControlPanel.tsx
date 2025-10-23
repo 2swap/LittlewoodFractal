@@ -90,7 +90,7 @@ export const ControlPanel = ({
             <Slider
               id="degree-slider-int"
               min={2}
-              max={10}
+              max={5}
               step={1}
               value={[degree]}
               onValueChange={(value) => onDegreeChange(value[0])}
@@ -100,12 +100,12 @@ export const ControlPanel = ({
 
           <div className="space-y-3">
             <Label htmlFor="coefficient-sum-slider" className="text-sm font-medium text-foreground">
-              Max Coefficient Sum: {coefficientSum}
+              Coefficient Sum: {coefficientSum}
             </Label>
             <Slider
               id="coefficient-sum-slider"
-              min={2}
-              max={20}
+              min={0}
+              max={50}
               step={1}
               value={[coefficientSum]}
               onValueChange={(value) => onCoefficientSumChange(value[0])}
