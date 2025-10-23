@@ -32,7 +32,7 @@ export const ControlPanel = ({
       <Tabs value={mode} onValueChange={(v) => onModeChange(v as "complex" | "integer")}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="complex">Complex</TabsTrigger>
-          <TabsTrigger value="integer">Integer</TabsTrigger>
+          <TabsTrigger value="integer">Coefficient Sum</TabsTrigger>
         </TabsList>
         
         <TabsContent value="complex" className="space-y-6 mt-6">
