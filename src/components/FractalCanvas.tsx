@@ -14,8 +14,6 @@ interface FractalCanvasProps {
   maxRoots: number;
   maxIterations: number;
   onConvergenceStats?: (stats: ConvergenceStats) => void;
-  mode: "complex" | "integer";
-  coefficientSum?: number;
 }
 
 interface ConvergenceStats {
@@ -25,7 +23,7 @@ interface ConvergenceStats {
   avgIterations: number;
 }
 
-export const FractalCanvas = ({ degree, coefficients, onCoefficientsChange, onRenderComplete, maxRoots, maxIterations, onConvergenceStats, mode, coefficientSum = 3 }: FractalCanvasProps) => {
+export const FractalCanvas = ({ degree, coefficients, onCoefficientsChange, onRenderComplete, maxRoots, maxIterations, onConvergenceStats }: FractalCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isRendering, setIsRendering] = useState(false);
@@ -61,125 +59,35 @@ export const FractalCanvas = ({ degree, coefficients, onCoefficientsChange, onRe
 
   useEffect(() => {
     // Predict root count
-    let estimatedRoots;
-    if (mode === "integer") {
-      // Fast count of polynomials
-      const numPolynomials = countPolynomials(coefficientSum, degree);
-      estimatedRoots = numPolynomials * degree;
-    } else {
-      const numPolynomials = Math.pow(coefficients.length, degree);
-      estimatedRoots = numPolynomials * degree;
-    }
+    const numPolynomials = Math.pow(coefficients.length, degree);
+    const estimatedRoots = numPolynomials * degree;
     
     if (estimatedRoots > maxRoots) {
-      setErrorMessage(`Too many roots to render: ${estimatedRoots.toLocaleString()}. Maximum is ${maxRoots.toLocaleString()}. Please reduce degree or coefficient ${mode === "integer" ? "sum" : "count"}.`);
+      setErrorMessage(`Too many roots to render: ${estimatedRoots.toLocaleString()}. Maximum is ${maxRoots.toLocaleString()}. Please reduce degree or coefficient count.`);
       setIsRendering(false);
       return;
     }
     
     setErrorMessage(null);
     renderFractal();
-  }, [degree, coefficients, maxRoots, maxIterations, canvasSize, mode, coefficientSum]);
+  }, [degree, coefficients, maxRoots, maxIterations, canvasSize]);
 
-
-  const generateIntegerPartitions = (exactSum: number, parts: number): number[][] => {
-    const result: number[][] = [];
-    
-    const partition = (remaining: number, numParts: number, current: number[]) => {
-      if (numParts === 0) {
-        if (remaining === 0) {
-          result.push([...current]);
-        }
-        return;
-      }
-      
-      if (numParts === 1) {
-        if (remaining >= 0) {
-          result.push([...current, remaining]);
-        }
-        return;
-      }
-      
-      // Try all possible values for current position
-      for (let i = 0; i <= remaining; i++) {
-        current.push(i);
-        partition(remaining - i, numParts - 1, current);
-        current.pop();
-      }
-    };
-    
-    partition(exactSum, parts, []);
-    return result;
-  };
-
-  const applySignCombinations = (partition: number[]): number[][] => {
-    const result: number[][] = [];
-    
-    // Find indices of non-zero elements
-    const nonZeroIndices: number[] = [];
-    partition.forEach((val, idx) => {
-      if (val !== 0) nonZeroIndices.push(idx);
-    });
-    
-    const numNonZero = nonZeroIndices.length;
-    const numCombinations = Math.pow(2, numNonZero);
-    
-    // Generate all sign combinations for non-zero elements
-    for (let i = 0; i < numCombinations; i++) {
-      const combo = [...partition];
-      for (let j = 0; j < numNonZero; j++) {
-        const idx = nonZeroIndices[j];
-        const sign = (i >> j) & 1 ? -1 : 1;
-        combo[idx] = partition[idx] * sign;
-      }
-      result.push(combo);
-    }
-    
-    return result;
-  };
-
-  const countPolynomials = (sum: number, degree: number): number => {
-    // Fast count without generating all polynomials
-    let count = 0;
-    const partitions = generateIntegerPartitions(sum, degree);
-    
-    for (const partition of partitions) {
-      const numNonZero = partition.filter(v => v !== 0).length;
-      count += Math.pow(2, numNonZero);
-    }
-    
-    return count;
-  };
 
   const generatePolynomials = (degree: number, coeffs: Complex[]) => {
-    if (mode === "integer") {
-      const partitions = generateIntegerPartitions(coefficientSum, degree);
-      const allPolynomials: Complex[][] = [];
-      
-      for (const partition of partitions) {
-        const signedPartitions = applySignCombinations(partition);
-        for (const signedPartition of signedPartitions) {
-          allPolynomials.push(signedPartition.map(n => ({ re: n, im: 0 } as Complex)));
-        }
-      }
-      
-      return allPolynomials;
-    } else {
-      const numPolynomials = Math.pow(coeffs.length, degree);
-      const polynomials: Complex[][] = [];
+    const numPolynomials = Math.pow(coeffs.length, degree);
+    const polynomials: Complex[][] = [];
 
-      for (let i = 0; i < numPolynomials; i++) {
-        const poly: Complex[] = [];
-        let temp = i;
-        for (let j = 0; j < degree; j++) {
-          poly.push(coeffs[temp % coeffs.length]);
-          temp = Math.floor(temp / coeffs.length);
-        }
-        polynomials.push(poly);
+    for (let i = 0; i < numPolynomials; i++) {
+      const poly: Complex[] = [];
+      let temp = i;
+      for (let j = 0; j < degree; j++) {
+        poly.push(coeffs[temp % coeffs.length]);
+        temp = Math.floor(temp / coeffs.length);
       }
-
-      return polynomials;
+      polynomials.push(poly);
     }
+
+    return polynomials;
   };
 
   const evaluatePolynomial = (coeffs: Complex[], z: Complex): Complex => {
@@ -463,27 +371,25 @@ export const FractalCanvas = ({ degree, coefficients, onCoefficientsChange, onRe
       ctx.fill();
     });
 
-    // Draw coefficient dots as white rings (responsive sizing) - only in complex mode
-    if (mode === "complex") {
-      const baseRadius = isMobile ? Math.min(canvas.width, canvas.height) * 0.025 : 8;
-      
-      coefficients.forEach((coeff, index) => {
-        const x = toCanvasX(coeff.re);
-        const y = toCanvasY(coeff.im);
+    // Draw coefficient dots as white rings (responsive sizing)
+    const baseRadius = isMobile ? Math.min(canvas.width, canvas.height) * 0.025 : 8;
+    
+    coefficients.forEach((coeff, index) => {
+      const x = toCanvasX(coeff.re);
+      const y = toCanvasY(coeff.im);
 
-        // Highlight if hovered or dragged
-        const isActive = index === hoveredIndex || index === draggedIndex;
-        const radius = isActive ? baseRadius * 1.4 : baseRadius;
-        const lineWidth = isActive ? 4 : 3;
+      // Highlight if hovered or dragged
+      const isActive = index === hoveredIndex || index === draggedIndex;
+      const radius = isActive ? baseRadius * 1.4 : baseRadius;
+      const lineWidth = isActive ? 4 : 3;
 
-        // Simple white ring - no glow
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = lineWidth;
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, 2 * Math.PI);
-        ctx.stroke();
-      });
-    }
+      // Simple white ring - no glow
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = lineWidth;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, 2 * Math.PI);
+      ctx.stroke();
+    });
 
     setIsRendering(false);
     onRenderComplete?.();
@@ -516,7 +422,6 @@ export const FractalCanvas = ({ degree, coefficients, onCoefficientsChange, onRe
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (mode !== "complex") return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -531,7 +436,6 @@ export const FractalCanvas = ({ degree, coefficients, onCoefficientsChange, onRe
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (mode !== "complex") return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -561,7 +465,6 @@ export const FractalCanvas = ({ degree, coefficients, onCoefficientsChange, onRe
 
   // Touch event handlers
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (mode !== "complex") return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -578,7 +481,6 @@ export const FractalCanvas = ({ degree, coefficients, onCoefficientsChange, onRe
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (mode !== "complex") return;
     const canvas = canvasRef.current;
     if (!canvas || draggedIndex === null) return;
 

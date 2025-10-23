@@ -15,7 +15,6 @@ interface ConvergenceStats {
 }
 
 const Index = () => {
-  const [mode, setMode] = useState<"complex" | "integer">("complex");
   const [degree, setDegree] = useState(6);
   const [maxRoots, setMaxRoots] = useState(10000);
   const maxIterations = 100; // Fixed value
@@ -23,7 +22,6 @@ const Index = () => {
     { re: 1, im: 0 },
     { re: -1, im: 0 },
   ]);
-  const [coefficientSum, setCoefficientSum] = useState(3);
 
   const handleCoefficientCountChange = (count: number) => {
     const newCoeffs = [...coefficients];
@@ -49,21 +47,15 @@ const Index = () => {
         onCoefficientsChange={setCoefficients}
         maxRoots={maxRoots}
         maxIterations={maxIterations}
-        mode={mode}
-        coefficientSum={coefficientSum}
       />
       
       {/* Overlaid Control Panel */}
       <aside className="absolute top-4 left-4 w-[350px] max-h-[calc(100vh-2rem)] overflow-y-auto overflow-x-hidden p-6">
         <ControlPanel
-          mode={mode}
-          onModeChange={setMode}
           degree={degree}
           onDegreeChange={setDegree}
           coefficientCount={coefficients.length}
           onCoefficientCountChange={handleCoefficientCountChange}
-          coefficientSum={coefficientSum}
-          onCoefficientSumChange={setCoefficientSum}
           maxRoots={maxRoots}
           onMaxRootsChange={setMaxRoots}
         />
